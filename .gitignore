@@ -1,0 +1,55 @@
+.env
+.env.*
+.venv/
+venv/
+env/
+node_modules/
+frontend/dist/
+frontend/.vite/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.tox/
+.nox/
+.hypothesis/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Private keys and local credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.secret
+id_rsa
+id_ed25519
+
+# Local source and intermediate datasets are not required in Git.
+original_data/
+movie_project/data/excluded/
+movie_project/data/lookup/
+movie_project/data/manual_verification/
+movie_project/data/logs/
+movie_project/data/suggestions/
+movie_project/data/user_added/
+
+# Suggestion records can contain contact details.
+suggestions*.jsonl
+
+# Keep only the verified compact catalogue in the final data directory.
+/movie_project/data/final/*
+!/movie_project/data/final/movies_model_ready.csv.gz
