@@ -64,7 +64,7 @@ def _empty_artwork():
 
 
 class TMDBService:
-    CACHE_TTL_SECONDS = 12 * 60 * 60
+    CACHE_TTL_SECONDS = 24 * 60 * 60
     FAILURE_CACHE_TTL_SECONDS = 15
     BACKOFF_SECONDS = 10
     AUTH_BACKOFF_SECONDS = 5 * 60

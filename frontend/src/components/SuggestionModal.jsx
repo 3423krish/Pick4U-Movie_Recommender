@@ -207,9 +207,11 @@ function SuggestionModal({ initialTitle, returnFocusRef, onClose, onSelectMovie 
           <div className="suggestion-result suggestion-result--success" role="status">
             <strong>Thank you for the suggestion.</strong>
             <p>
-              {submitState.result.emailed
-                ? 'Your movie details were saved and an email notification was sent to the catalogue administrator.'
-                : 'Your movie details were saved, but the email could not be sent. The Flask server may need SMTP configuration.'}
+              {submitState.result.saved === false
+                ? 'An email notification was sent, but the local copy could not be saved.'
+                : submitState.result.emailed
+                  ? 'Your movie details were saved and an email notification was sent to the catalogue administrator.'
+                  : 'Your movie details were saved, but the email could not be sent. The Flask server may need SMTP configuration.'}
             </p>
             <button className="button button--primary" type="button" onClick={onClose}>Done</button>
           </div>

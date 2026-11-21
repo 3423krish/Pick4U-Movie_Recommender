@@ -353,6 +353,15 @@ function App() {
       <footer className="site-footer">
         <a className="brand brand--footer" href="#home"><span className="brand-mark" aria-hidden="true">P</span><span>Picks4U</span></a>
         <span>A better movie night starts with a good match.</span>
+        <div className="tmdb-attribution">
+          <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer" aria-label="TMDB website">
+            <img
+              src="https://www.themoviedb.org/assets/v4/logos/v2/blue_square_1-5bdc75aaebeb75dc7ae79426ddd9be3b2be1e342510f8202baf6bffa71d7f5c4.svg"
+              alt="TMDB"
+            />
+          </a>
+          <span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
+        </div>
         <a href="#home">Back to top ↑</a>
       </footer>
       {suggestionOpen && (

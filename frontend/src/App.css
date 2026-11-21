@@ -1313,6 +1313,27 @@
   font-size: 14px;
 }
 
+.tmdb-attribution {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 470px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tmdb-attribution a {
+  display: block;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.tmdb-attribution img {
+  display: block;
+  width: 76px;
+  height: auto;
+}
+
 .brand--footer {
   font-size: 18px;
 }

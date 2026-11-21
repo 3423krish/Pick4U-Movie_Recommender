@@ -46,6 +46,35 @@ class TMDBServiceTests(unittest.TestCase):
         self.assertEqual(result["backdrop_url"], "https://image.tmdb.org/t/p/w1280/backdrop.jpg")
         self.assertEqual(cached, result)
 
+    def test_artwork_and_movie_details_cache_for_24_hours(self):
+        service = TMDBService(token="test-token")
+        clock = [1000.0]
+        artwork_response = {"poster_path": "/poster.jpg"}
+        details_response = {"title": "Sample Movie"}
+        with (
+            patch("backend.tmdb_service.time.monotonic", side_effect=lambda: clock[0]),
+            patch(
+                "backend.tmdb_service.urlopen",
+                side_effect=[
+                    self.response(artwork_response),
+                    self.response(details_response),
+                    self.response(artwork_response),
+                    self.response(details_response),
+                ],
+            ) as fetch,
+        ):
+            service.get_movie_artwork(123)
+            service.get_movie_for_suggestion(123)
+            clock[0] += 24 * 60 * 60 - 1
+            service.get_movie_artwork(123)
+            service.get_movie_for_suggestion(123)
+            self.assertEqual(fetch.call_count, 2)
+
+            clock[0] += 2
+            service.get_movie_artwork(123)
+            service.get_movie_for_suggestion(123)
+            self.assertEqual(fetch.call_count, 4)
+
     def test_missing_tmdb_id_resolves_exact_imdb_id_without_title_search(self):
         service = TMDBService(token="test-token")
         responses = [

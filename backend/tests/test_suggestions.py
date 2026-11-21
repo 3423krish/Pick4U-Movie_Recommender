@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from backend.suggestions import send_email
+from backend.suggestions import ValidationError, send_email, validate_suggestion
 
 
 class SuggestionEmailTests(unittest.TestCase):
@@ -61,6 +61,20 @@ class SuggestionEmailTests(unittest.TestCase):
 
         self.assertFalse(sent)
         smtp.assert_not_called()
+
+    def test_suggestion_text_strips_html_and_enforces_field_lengths(self):
+        record = validate_suggestion({
+            "title": "<b>Film</b><script>alert(1)</script>",
+            "overview": "<p>A <em>quiet</em> story.</p>",
+            "genres": ["<strong>Drama</strong>"],
+        })
+
+        self.assertEqual(record["title"], "Film")
+        self.assertEqual(record["overview"], "A quiet story.")
+        self.assertEqual(record["genres"], ["Drama"])
+
+        with self.assertRaises(ValidationError):
+            validate_suggestion({"title": "x" * 201})
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import json
+import html
 import logging
 import os
 import re
@@ -7,6 +8,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from email.message import EmailMessage
+from html.parser import HTMLParser
 from pathlib import Path
 
 from .tmdb_service import normalize_tmdb_id
@@ -18,8 +20,39 @@ EMAIL_PATTERN = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[^@\s]{2,}$")
 _SUGGESTION_LOCK = threading.Lock()
 
 
+class _PlainTextParser(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts = []
+        self._suppressed_tags = []
+
+    def handle_starttag(self, tag, _attrs):
+        if tag in {"script", "style"}:
+            self._suppressed_tags.append(tag)
+        elif not self._suppressed_tags:
+            self.parts.append(" ")
+
+    def handle_endtag(self, tag):
+        if self._suppressed_tags:
+            if tag == self._suppressed_tags[-1]:
+                self._suppressed_tags.pop()
+        else:
+            self.parts.append(" ")
+
+    def handle_data(self, data):
+        if not self._suppressed_tags:
+            self.parts.append(data)
+
+
 class ValidationError(ValueError):
     pass
+
+
+def _plain_text(value):
+    parser = _PlainTextParser()
+    parser.feed(html.unescape(value))
+    parser.close()
+    return re.sub(r"\s+", " ", "".join(parser.parts)).strip()
 
 
 def _text(payload, key, max_len):
@@ -28,7 +61,7 @@ def _text(payload, key, max_len):
         return ""
     if not isinstance(value, str):
         raise ValidationError(f"'{key}' must be text.")
-    value = re.sub(r"[\r\n\t\v\f]+", " ", value).strip()
+    value = _plain_text(value)
     if len(value) > max_len:
         raise ValidationError(f"'{key}' must be {max_len} characters or fewer.")
     return value
@@ -47,7 +80,7 @@ def _list(payload, key, max_items=10, max_len=60):
     for item in value:
         if not isinstance(item, str):
             raise ValidationError(f"'{key}' must contain text only.")
-        item = re.sub(r"[\r\n\t\v\f]+", " ", item).strip()
+        item = _plain_text(item)
         if len(item) > max_len:
             raise ValidationError(f"Each '{key}' item must be {max_len} characters or fewer.")
         key_value = item.casefold()

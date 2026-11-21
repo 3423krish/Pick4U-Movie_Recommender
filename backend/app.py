@@ -1,5 +1,6 @@
 import math
 import logging
+import os
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,14 @@ from .suggestions import (
 from .tmdb_service import TMDBService, TMDBServiceError, normalize_tmdb_id, tmdb_image_url
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _rate_limit_from_env(name, default):
+    try:
+        value = int(os.getenv(name, "").strip())
+    except ValueError:
+        return default
+    return value if value > 0 else default
 
 
 def _json_value(value):
@@ -73,8 +82,18 @@ def create_app(recommender=None, tmdb_service=None, suggestions_log=None):
     )
     app.config["TMDB_SERVICE"] = tmdb_service if tmdb_service is not None else TMDBService()
     app.config["SUGGESTIONS_LOG"] = suggestions_log
-    suggestion_limiter = RateLimiter(limit=5, window=3600)
-    lookup_limiter = RateLimiter(limit=60, window=3600)
+    suggestion_limiter = RateLimiter(
+        limit=_rate_limit_from_env("RATE_LIMIT_SUGGESTIONS_PER_HOUR", 5),
+        window=3600,
+    )
+    recommend_limiter = RateLimiter(
+        limit=_rate_limit_from_env("RATE_LIMIT_RECOMMEND_PER_HOUR", 600),
+        window=3600,
+    )
+    lookup_limiter = RateLimiter(
+        limit=_rate_limit_from_env("RATE_LIMIT_TMDB_PER_HOUR", 600),
+        window=3600,
+    )
 
     @app.errorhandler(413)
     def request_too_large(_exception):
@@ -168,6 +187,8 @@ def create_app(recommender=None, tmdb_service=None, suggestions_log=None):
 
     @app.route("/api/recommend", methods=["POST"])
     def recommend():
+        if not recommend_limiter.allow(request.remote_addr or "unknown"):
+            return _error("Too many recommendations. Please try again later.", 429)
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
             return _error("Request body must be a JSON object.", 400)
@@ -340,16 +361,22 @@ def create_app(recommender=None, tmdb_service=None, suggestions_log=None):
         if existing is not None:
             return jsonify({"status": "exists", "movie_id": str(existing)})
 
+        saved = None
         try:
             saved = save_suggestion(record, current_app.config["SUGGESTIONS_LOG"])
         except OSError:
             LOGGER.exception("Could not save a movie suggestion.")
-            return _error("The suggestion could not be saved. Please try again later.", 500)
-        if not saved:
+        if saved is False:
             return jsonify({"status": "duplicate", "message": "A similar suggestion was already received."})
 
         emailed = send_email(record)
-        return jsonify({"status": "received", "emailed": emailed}), 201
+        if saved is None and not emailed:
+            return _error("The suggestion could not be saved or emailed. Please try again later.", 500)
+        return jsonify({
+            "status": "received",
+            "emailed": emailed,
+            "saved": saved is True,
+        }), 201
 
     return app
 

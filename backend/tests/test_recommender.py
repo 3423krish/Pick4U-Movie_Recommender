@@ -1,3 +1,4 @@
+import os
 import unittest
 import tempfile
 from pathlib import Path
@@ -5,6 +6,7 @@ from unittest.mock import patch
 
 from backend.app import create_app
 from backend.model_loader import load_recommender
+from backend.suggestions import RateLimiter
 from backend.tmdb_service import TMDBServiceError
 
 
@@ -81,6 +83,64 @@ class RecommenderIntegrationTests(unittest.TestCase):
         self.assertEqual(details.status_code, 200)
         self.assertEqual(details.json["movie_id"], movie_id)
         self.assertIn("overview", details.json)
+
+    def test_api_recommendations_are_rate_limited(self):
+        with patch.dict(os.environ, {"RATE_LIMIT_RECOMMEND_PER_HOUR": "1"}):
+            client = create_app(
+                self.recommender,
+                tmdb_service=OfflineTMDBService(),
+            ).test_client()
+
+        payload = {"movie_id": "tmdb:19995", "n": 1, "language_mode": "ignore"}
+        first = client.post("/api/recommend", json=payload)
+        limited = client.post("/api/recommend", json=payload)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(limited.status_code, 429)
+        self.assertIn("too many recommendations", limited.json["error"].lower())
+
+    def _configured_rate_limits(self, environment):
+        real_limiter = RateLimiter
+        limits = []
+
+        def capture_limiter(limit, window):
+            limits.append((limit, window))
+            return real_limiter(limit=limit, window=window)
+
+        with (
+            patch.dict(os.environ, environment, clear=True),
+            patch("backend.app.RateLimiter", side_effect=capture_limiter),
+        ):
+            create_app(
+                self.recommender,
+                tmdb_service=OfflineTMDBService(),
+            )
+        return limits
+
+    def test_rate_limit_environment_defaults(self):
+        self.assertEqual(
+            self._configured_rate_limits({}),
+            [(5, 3600), (600, 3600), (600, 3600)],
+        )
+
+    def test_rate_limit_environment_overrides(self):
+        self.assertEqual(
+            self._configured_rate_limits({
+                "RATE_LIMIT_RECOMMEND_PER_HOUR": "45",
+                "RATE_LIMIT_TMDB_PER_HOUR": "90",
+                "RATE_LIMIT_SUGGESTIONS_PER_HOUR": "8",
+            }),
+            [(8, 3600), (45, 3600), (90, 3600)],
+        )
+
+    def test_invalid_rate_limit_environment_uses_defaults(self):
+        self.assertEqual(
+            self._configured_rate_limits({
+                "RATE_LIMIT_RECOMMEND_PER_HOUR": "not-a-number",
+                "RATE_LIMIT_TMDB_PER_HOUR": "-1",
+                "RATE_LIMIT_SUGGESTIONS_PER_HOUR": "0",
+            }),
+            [(5, 3600), (600, 3600), (600, 3600)],
+        )
 
     def test_api_adds_tmdb_artwork_urls_to_current_movie_responses(self):
         class FakeTMDBService:
@@ -296,6 +356,26 @@ class RecommenderIntegrationTests(unittest.TestCase):
             self.assertEqual(exists.status_code, 200)
             self.assertEqual(exists.json["status"], "exists")
             self.assertEqual(exists.json["movie_id"], "tmdb:19995")
+
+    def test_suggestion_email_succeeds_when_local_save_fails(self):
+        client = create_app(
+            self.recommender,
+            tmdb_service=OfflineTMDBService(),
+        ).test_client()
+        with (
+            patch("backend.app.save_suggestion", side_effect=OSError("disk unavailable")),
+            patch("backend.app.send_email", return_value=True) as send_email,
+        ):
+            response = client.post(
+                "/api/suggestions",
+                json={"title": "Mail-delivered Film"},
+            )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json["status"], "received")
+        self.assertTrue(response.json["emailed"])
+        self.assertFalse(response.json["saved"])
+        send_email.assert_called_once()
 
     def test_tmdb_routes_report_upstream_rate_limit(self):
         class RateLimitedTMDBService:
