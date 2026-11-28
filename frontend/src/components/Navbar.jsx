@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { imageAssets } from '../config/imageAssets.js'
 import MovieArtwork from './MovieArtwork.jsx'
 
 function SearchIcon() {
@@ -73,7 +74,7 @@ function Navbar({
     <header className="site-header">
       <nav className="nav-wrap" aria-label="Main navigation">
         <a className="brand" href="#home" aria-label="Picks4U home">
-          <span className="brand-mark" aria-hidden="true">P</span>
+          <img className="brand-mark" src={imageAssets.logo} alt="" aria-hidden="true" />
           <span>Picks4U</span>
         </a>
         <div className="nav-search-wrap" ref={wrapperRef}>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { imageAssets } from './config/imageAssets.js'
 import './App.css'
 import Hero from './components/Hero.jsx'
 import MovieDetails from './components/MovieDetails.jsx'
@@ -351,7 +352,7 @@ function App() {
         </section>
       </main>
       <footer className="site-footer">
-        <a className="brand brand--footer" href="#home"><span className="brand-mark" aria-hidden="true">P</span><span>Picks4U</span></a>
+        <a className="brand brand--footer" href="#home" aria-label="Picks4U home"><img className="brand-mark" src={imageAssets.logo} alt="" aria-hidden="true" /><span>Picks4U</span></a>
         <span>A better movie night starts with a good match.</span>
         <div className="tmdb-attribution">
           <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer" aria-label="TMDB website">

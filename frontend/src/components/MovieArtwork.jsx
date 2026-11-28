@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { imageAssets } from '../config/imageAssets.js'
 import { imageUrl } from './movieImages.js'
 
 function MovieArtwork({ url, title }) {
@@ -12,7 +13,7 @@ function MovieArtwork({ url, title }) {
       )}
       {!src || failed ? (
         <div className="artwork-placeholder" aria-hidden="true">
-          <span className="artwork-placeholder__mark">P</span>
+          <img className="artwork-placeholder__mark" src={imageAssets.artworkPlaceholder} alt="" />
         </div>
       ) : null}
       <span className="movie-artwork__shade" />
